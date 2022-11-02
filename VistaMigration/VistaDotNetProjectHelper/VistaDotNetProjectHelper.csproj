@@ -10,7 +10,9 @@
     <ItemGroup>
       <None Remove="stylecop.liquid" />
       <None Remove="Templates\editorconfig.liquid" />
+      <None Remove="Templates\gitattributes.liquid" />
       <None Remove="Templates\gitignore.liquid" />
+      <None Remove="Templates\nuget.config.liquid" />
     </ItemGroup>
 
 	<ItemGroup>
@@ -18,6 +20,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<EmbeddedResource Include="Templates\gitattributes.liquid" />
+		<EmbeddedResource Include="Templates\nuget.config.liquid" />
 		<EmbeddedResource Include="Templates\gitignore.liquid" />
 		<EmbeddedResource Include="Templates\editorconfig.liquid" />
 		<EmbeddedResource Include="Templates\stylecop.liquid" />
