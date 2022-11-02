@@ -13,9 +13,6 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Templates\gitattributes.liquid" />
-		<EmbeddedResource Include="Templates\FXCopGlobal.ruleset.liquid" />
-		<EmbeddedResource Include="Templates\StyleCopGlobal.ruleset.liquid" />
-		<EmbeddedResource Include="Templates\global.ruleset.liquid" />
 		<EmbeddedResource Include="Templates\nuget.config.liquid" />
 		<EmbeddedResource Include="Templates\gitignore.liquid" />
 		<EmbeddedResource Include="Templates\editorconfig.liquid" />

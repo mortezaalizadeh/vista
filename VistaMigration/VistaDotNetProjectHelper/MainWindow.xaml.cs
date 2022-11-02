@@ -56,9 +56,6 @@ public partial class MainWindow : Window
     private const string EditorConfigFileName = ".editorconfig";
     private const string GitAttributesFileName = ".gitattributes";
     private const string NugetConfigFileName = "nuget.config";
-    private const string GlobalRulesetFileName = "Global.ruleset";
-    private const string FXCopGlobalRulesetFileName = "FXCopGlobal.ruleset";
-    private const string StyleCopGlobalRulesetFileName = "StyleCopGlobal.ruleset";
 
     private const string PipelineVersionConstant = "$VersionNuGet$";
     private const string PipelineDirSrcConstant = "$DirSrc$";
@@ -114,9 +111,6 @@ public partial class MainWindow : Window
             SetEditorConfig();
             SetGitAttributes();
             SetNugetConfig();
-            SetGlobalRuleset();
-            SetFXCopGlobalRuleset();
-            SetStyleCopGlobalRuleset();
 
             var sourceDirectory = GetSourceDirectory();
 
@@ -271,51 +265,6 @@ public partial class MainWindow : Window
             }));
 
         File.WriteAllText(Path.Join(GetDirectoryPath(), NugetConfigFileName), content);
-    }
-
-    private void SetGlobalRuleset()
-    {
-        using var stream = Assembly.GetExecutingAssembly()
-            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.global.ruleset.liquid");
-        using var streamReader = new StreamReader(stream!);
-
-        var content = DotLiquid.Template.Parse(
-                streamReader.ReadToEnd())
-            .Render(Hash.FromAnonymousObject(new
-            {
-            }));
-
-        File.WriteAllText(Path.Join(GetDirectoryPath(), GlobalRulesetFileName), content);
-    }
-
-    private void SetFXCopGlobalRuleset()
-    {
-        using var stream = Assembly.GetExecutingAssembly()
-            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.FXCopGlobal.ruleset.liquid");
-        using var streamReader = new StreamReader(stream!);
-
-        var content = DotLiquid.Template.Parse(
-                streamReader.ReadToEnd())
-            .Render(Hash.FromAnonymousObject(new
-            {
-            }));
-
-        File.WriteAllText(Path.Join(GetDirectoryPath(), FXCopGlobalRulesetFileName), content);
-    }
-
-    private void SetStyleCopGlobalRuleset()
-    {
-        using var stream = Assembly.GetExecutingAssembly()
-            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.StyleCopGlobal.ruleset.liquid");
-        using var streamReader = new StreamReader(stream!);
-
-        var content = DotLiquid.Template.Parse(
-                streamReader.ReadToEnd())
-            .Render(Hash.FromAnonymousObject(new
-            {
-            }));
-
-        File.WriteAllText(Path.Join(GetDirectoryPath(), StyleCopGlobalRulesetFileName), content);
     }
 
     private static void SetAssemblyInfo(string projectDirectory, string csprojFile)
@@ -474,8 +423,7 @@ public partial class MainWindow : Window
             new(LangVersion, "10"),
             new(TreatWarningsAsErrors, "true"),
             new(NoWarn, string.Empty),
-            new(WarningsAsErrors, string.Empty),
-            new(CodeAnalysisRuleSet, $"..\\..\\{GlobalRulesetFileName}")
+            new(WarningsAsErrors, string.Empty)
         };
 
         var propertyGroup = xDocument.Descendants(PropertyGroup)
