@@ -292,7 +292,7 @@ public partial class MainWindow : Window
 
     private static void SetPropertyGroups(XContainer xDocument, string csprojFile)
     {
-        SetTargetFrameworks(xDocument);
+        SetTargetFrameworks(xDocument, csprojFile);
         SetGlobalPropertyGroupItems(xDocument, csprojFile);
         SetDebugPropertyGroupItems(xDocument);
         SetReleasePropertyGroupItems(xDocument);
@@ -490,13 +490,16 @@ public partial class MainWindow : Window
             releasePropertyGroup!.Add(new XElement(DebugSymbols, "true"));
     }
 
-    private static void SetTargetFrameworks(XContainer xDocument)
+    private static void SetTargetFrameworks(XContainer xDocument, string csprojFile)
     {
         var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
 
         if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
         {
-            var targetFrameworksToAdd = new List<string> { "net461", "netstandard2.0" };
+            var targetFrameworksToAdd = csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase)
+                ? new List<string> { "net472" }
+                : new List<string> { "net461", "netstandard2.0", "net6.0" };
+
             var allTargetedFrameworks = targetFrameworks.Value.Split(";").ToList();
 
             foreach (var targetFrameworkToAdd in targetFrameworksToAdd
