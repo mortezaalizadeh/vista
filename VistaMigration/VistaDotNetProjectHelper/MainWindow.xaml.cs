@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -42,8 +43,15 @@ public partial class MainWindow : Window
     private const string Id = "id";
     private const string NuspecVersion = "version";
     private const string RequireLicenseAcceptance = "requireLicenseAcceptance";
-    private const string PipelineVersionConstant = "$VersionNuGet$";
     private static readonly XNamespace NuspecNamespace = "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd";
+    private const string Files = "files";
+    private const string Src = "src";
+    private const string Target = "target";
+    private const string FileConstant = "file";
+
+    private const string PipelineVersionConstant = "$VersionNuGet$";
+    private const string PipelineDirSrcConstant = "$DirSrc$";
+    private const string PipelineConfigurationConstant = "$configuration$";
 
     public MainWindow()
     {
@@ -141,14 +149,17 @@ public partial class MainWindow : Window
         var nuspecXDocument = XDocument.Load(nuspecFilePath);
 
         SetMetadataItems(nuspecXDocument, csprojFile);
+        SetAllFiles(xDocument, nuspecXDocument, csprojFile);
 
-
-        // Need to create nuspec file
-        //var allTargetFrameworks = GetAllTargetFrameworks(xDocument);
+        // Removing nested namespaces from elements
+        foreach (var node in nuspecXDocument.Root!.Descendants())
+        {
+            node.Name = node.Name.LocalName;
+        }
 
         using var xmlWriter = XmlWriter.Create(nuspecFilePath, new XmlWriterSettings
         {
-            Indent = true
+            Indent = true,
         });
 
         nuspecXDocument.Save(xmlWriter);
@@ -207,7 +218,7 @@ public partial class MainWindow : Window
         File.WriteAllText(Path.Join(propertiesDirectory, "AssemblyInfo.cs"), assemblyInfoContent);
     }
 
-    private void SetPropertyGroups(XContainer xDocument, string csprojFile)
+    private static void SetPropertyGroups(XContainer xDocument, string csprojFile)
     {
         SetTargetFrameworks(xDocument);
         SetGlobalPropertyGroupItems(xDocument, csprojFile);
@@ -341,7 +352,7 @@ public partial class MainWindow : Window
 
         if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
         {
-            var targetFrameworksToAdd = new List<string> { "net461", "netstandard2.0", "net6.0" };
+            var targetFrameworksToAdd = new List<string> { "net461", "netstandard2.0" };
             var allTargetedFrameworks = targetFrameworks.Value.Split(";").ToList();
 
             foreach (var targetFrameworkToAdd in targetFrameworksToAdd
@@ -358,12 +369,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string GetAllTargetFrameworks(XContainer xDocument)
+    private static IEnumerable<string> GetAllTargetFrameworks(XContainer xDocument)
     {
         var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
 
         if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
-            return targetFrameworks.Value;
+            return targetFrameworks.Value.Split(";");
 
         throw new Exception($"No {TargetFrameworks} found!!!");
     }
@@ -378,7 +389,7 @@ public partial class MainWindow : Window
                 ? !element.Attributes().Any()
                 : element.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue))
-            .SelectMany(resource => resource.Elements())
+            .SelectMany(element => element.Elements())
             .ToDictionary(element => element.Name.LocalName, child => child);
     }
 
@@ -398,7 +409,7 @@ public partial class MainWindow : Window
     {
         return xDocument
             .Descendants(ItemGroup)
-            .SelectMany(resource => resource.Elements())
+            .SelectMany(element => element.Elements())
             .Where(element => element.Name.LocalName == PackageReference)
             .ToDictionary(
                 element => element.Attribute(Include)!.Value,
@@ -419,7 +430,7 @@ public partial class MainWindow : Window
                 ? !element.Attributes().Any()
                 : element.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue))
-            .SelectMany(resource => resource.Elements())
+            .SelectMany(element => element.Elements())
             .ToDictionary(element => element.Name.LocalName, child => child);
     }
 
@@ -439,7 +450,7 @@ public partial class MainWindow : Window
     {
         return xDocument
             .Descendants(ItemGroup)
-            .SelectMany(resource => resource.Elements())
+            .SelectMany(element => element.Elements())
             .Where(element => element.Name.LocalName == AdditionalFiles)
             .ToDictionary(
                 element => element.Attribute(Include)!.Value,
@@ -455,8 +466,27 @@ public partial class MainWindow : Window
         return xDocument.Descendants(NuspecNamespace + Metadata)
             .Where(element =>
                 !element.Attributes().Any())
-            .SelectMany(resource => resource.Elements())
+            .SelectMany(element => element.Elements())
             .ToDictionary(element => element.Name.LocalName, child => child);
+    }
+
+    private static IReadOnlyCollection<FileProps> GetAllFiles(XContainer xDocument)
+    {
+        return xDocument.Descendants(NuspecNamespace + Files)
+            .Where(element =>
+                !element.Attributes().Any())
+            .SelectMany(element => element.Elements())
+            .Select(element => new FileProps
+            {
+                Element = element,
+                Src = element.Attribute(Src)!.Value,
+                Target = element.Attribute(Target)!.Value
+            }).ToList();
+    }
+
+    private static XElement? GetFile(XContainer xDocument)
+    {
+        return xDocument.Descendants(NuspecNamespace + Files).FirstOrDefault();
     }
 
     private static void SetMetadataItems(XContainer xDocument, string csprojFile)
@@ -491,6 +521,50 @@ public partial class MainWindow : Window
                     ? new XElement(itemToOverride.Item1)
                     : new XElement(itemToOverride.Item1, itemToOverride.Item2));
             }
+    }
+
+    private static void SetAllFiles(XContainer xDocument, XContainer nuspecXDocument, string csprojFile)
+    {
+        var allFiles = GetAllFiles(nuspecXDocument);
+
+        foreach (var file in allFiles)
+        {
+            file.Element.Remove();
+        }
+
+        var allTargetFrameworks = GetAllTargetFrameworks(xDocument);
+
+        var assemblyName = GetAssemblyName(csprojFile);
+
+        var files = allTargetFrameworks
+            .SelectMany(targetFramework =>
+            {
+                var fileNameWithoutExtension =
+                    $"{PipelineDirSrcConstant}\\{assemblyName}\\bin\\{PipelineConfigurationConstant}\\{targetFramework}\\{assemblyName}";
+                var target = $"lib\\{targetFramework}";
+
+                return new List<XElement>
+                {
+                    new(FileConstant, new XAttribute(Src, $"{fileNameWithoutExtension}.dll"),
+                        new XAttribute(Target, target)),
+                    new(FileConstant, new XAttribute(Src, $"{fileNameWithoutExtension}.pdb"),
+                        new XAttribute(Target, target)),
+                    new(FileConstant, new XAttribute(Src, $"{fileNameWithoutExtension}.xml"),
+                        new XAttribute(Target, target))
+                };
+            }).Concat(new List<XElement>
+            {
+                new(FileConstant, new XAttribute(Src, $"{PipelineDirSrcConstant}\\{assemblyName}\\**\\*.cs"),
+                    new XAttribute(Target, $"src\\{assemblyName}"))
+            })
+            .ToList();
+
+        var fileElement = GetFile(nuspecXDocument);
+
+        foreach (var file  in files)
+        {
+            fileElement!.Add(file);
+        }
     }
 
     private string GetDirectoryPath()
