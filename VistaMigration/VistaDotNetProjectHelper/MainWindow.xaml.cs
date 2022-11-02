@@ -118,10 +118,8 @@ public partial class MainWindow : Window
 
                 SetAssemblyInfo(projectDirectory, csprojFile);
 
-                var xDocument = XDocument.Load(csprojFile);
-
-                SetProjectFile(xDocument, csprojFile);
-                CheckAndCreateNuspecFile(xDocument, csprojFile);
+                SetProjectFile(csprojFile);
+                CheckAndCreateNuspecFile(csprojFile);
             }
         }
         catch (Exception exception)
@@ -131,8 +129,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private static void SetProjectFile(XDocument xDocument, string csprojFile)
+    private static void SetProjectFile(string csprojFile)
     {
+        var xDocument = XDocument.Load(csprojFile);
+
         SetPropertyGroups(xDocument, csprojFile);
         SetItemGroup(xDocument);
 
@@ -145,8 +145,10 @@ public partial class MainWindow : Window
         xDocument.Save(xmlWriter);
     }
 
-    private static void CheckAndCreateNuspecFile(XContainer xDocument, string csprojFile)
+    private static void CheckAndCreateNuspecFile(string csprojFile)
     {
+        var xDocument = XDocument.Load(csprojFile);
+
         if (csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase)) return;
 
         var nuspecFileName = $"{Path.GetFileNameWithoutExtension(csprojFile)}.nuspec";
