@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -43,15 +42,19 @@ public partial class MainWindow : Window
     private const string Id = "id";
     private const string NuspecVersion = "version";
     private const string RequireLicenseAcceptance = "requireLicenseAcceptance";
-    private static readonly XNamespace NuspecNamespace = "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd";
     private const string Files = "files";
     private const string Src = "src";
     private const string Target = "target";
     private const string FileConstant = "file";
+    private const string Xmlns = "xmlns";
+    private const string Package = "package";
+
 
     private const string PipelineVersionConstant = "$VersionNuGet$";
     private const string PipelineDirSrcConstant = "$DirSrc$";
     private const string PipelineConfigurationConstant = "$configuration$";
+    private static readonly XNamespace NuspecNamespace = "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd";
+
 
     public MainWindow()
     {
@@ -123,7 +126,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SetProjectFile(XDocument xDocument, string csprojFile)
+    private static void SetProjectFile(XDocument xDocument, string csprojFile)
     {
         SetPropertyGroups(xDocument, csprojFile);
         SetItemGroup(xDocument);
@@ -151,18 +154,29 @@ public partial class MainWindow : Window
         SetMetadataItems(nuspecXDocument, csprojFile);
         SetAllFiles(xDocument, nuspecXDocument, csprojFile);
 
-        // Removing nested namespaces from elements
-        foreach (var node in nuspecXDocument.Root!.Descendants())
+        foreach (var element in nuspecXDocument.Descendants())
         {
-            node.Name = node.Name.LocalName;
+            if (element.Name.LocalName == Package)
+                continue;
+
+            var attributes = element.Attributes();
+
+            foreach (var attribute in attributes)
+                if (attribute.IsNamespaceDeclaration && attribute.Name.LocalName == Xmlns)
+                    attribute.Remove();
+
+            element.Name = element.Name.LocalName;
         }
 
-        using var xmlWriter = XmlWriter.Create(nuspecFilePath, new XmlWriterSettings
+        using (var xmlWriter = XmlWriter.Create(nuspecFilePath, new XmlWriterSettings
+               {
+                   Indent = true
+               }))
         {
-            Indent = true,
-        });
+            nuspecXDocument.Save(xmlWriter);
+        }
 
-        nuspecXDocument.Save(xmlWriter);
+        File.WriteAllText(nuspecFilePath, File.ReadAllText(nuspecFilePath).Replace(" xmlns=\"\"", string.Empty));
     }
 
     private void SetStyleCop()
@@ -527,10 +541,7 @@ public partial class MainWindow : Window
     {
         var allFiles = GetAllFiles(nuspecXDocument);
 
-        foreach (var file in allFiles)
-        {
-            file.Element.Remove();
-        }
+        foreach (var file in allFiles) file.Element.Remove();
 
         var allTargetFrameworks = GetAllTargetFrameworks(xDocument);
 
@@ -559,12 +570,9 @@ public partial class MainWindow : Window
             })
             .ToList();
 
-        var fileElement = GetFile(nuspecXDocument);
+        var filesElement = GetFile(nuspecXDocument);
 
-        foreach (var file  in files)
-        {
-            fileElement!.Add(file);
-        }
+        foreach (var file in files) filesElement!.Add(file);
     }
 
     private string GetDirectoryPath()
