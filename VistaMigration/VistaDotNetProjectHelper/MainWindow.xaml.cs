@@ -37,6 +37,7 @@ public partial class MainWindow : Window
     private const string ItemGroup = "ItemGroup";
     private const string StyleCopJsonFileName = "stylecop.json";
     private const string GitIgnoreFileName = ".gitignore";
+    private const string EditorConfigFileName = ".editorconfig";
 
     private const string Metadata = "metadata";
     private const string Id = "id";
@@ -46,7 +47,6 @@ public partial class MainWindow : Window
     private const string Src = "src";
     private const string Target = "target";
     private const string FileConstant = "file";
-    private const string Xmlns = "xmlns";
     private const string Package = "package";
 
 
@@ -103,6 +103,7 @@ public partial class MainWindow : Window
         {
             SetStyleCop();
             SetGitIgnore();
+            SetEditorConfig();
 
             var sourceDirectory = GetSourceDirectory();
 
@@ -181,13 +182,13 @@ public partial class MainWindow : Window
             .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.stylecop.liquid");
         using var streamReader = new StreamReader(stream!);
 
-        var assemblyInfoContent = DotLiquid.Template.Parse(
+        var content = DotLiquid.Template.Parse(
                 streamReader.ReadToEnd())
             .Render(Hash.FromAnonymousObject(new
             {
             }));
 
-        File.WriteAllText(Path.Join(GetDirectoryPath(), StyleCopJsonFileName), assemblyInfoContent);
+        File.WriteAllText(Path.Join(GetDirectoryPath(), StyleCopJsonFileName), content);
     }
 
     private void SetGitIgnore()
@@ -196,13 +197,28 @@ public partial class MainWindow : Window
             .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.gitignore.liquid");
         using var streamReader = new StreamReader(stream!);
 
-        var assemblyInfoContent = DotLiquid.Template.Parse(
+        var content = DotLiquid.Template.Parse(
                 streamReader.ReadToEnd())
             .Render(Hash.FromAnonymousObject(new
             {
             }));
 
-        File.WriteAllText(Path.Join(GetDirectoryPath(), GitIgnoreFileName), assemblyInfoContent);
+        File.WriteAllText(Path.Join(GetDirectoryPath(), GitIgnoreFileName), content);
+    }
+
+    private void SetEditorConfig()
+    {
+        using var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.editorconfig.liquid");
+        using var streamReader = new StreamReader(stream!);
+
+        var content = DotLiquid.Template.Parse(
+                streamReader.ReadToEnd())
+            .Render(Hash.FromAnonymousObject(new
+            {
+            }));
+
+        File.WriteAllText(Path.Join(GetDirectoryPath(), EditorConfigFileName), content);
     }
 
     private static void SetAssemblyInfo(string projectDirectory, string csprojFile)
