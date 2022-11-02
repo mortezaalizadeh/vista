@@ -144,7 +144,7 @@ public partial class MainWindow : Window
 
         xDocument.Descendants()
             .Where(element => (element.IsEmpty || string.IsNullOrWhiteSpace(element.Value)) &&
-                              (element.Name.LocalName == PropertyGroup || element.Name.LocalName == ItemGroup) &&
+                              element.Name.LocalName is PropertyGroup or ItemGroup &&
                               !element.Nodes().Any())
             .Remove();
 
