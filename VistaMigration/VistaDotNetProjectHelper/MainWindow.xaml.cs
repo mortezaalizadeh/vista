@@ -159,12 +159,6 @@ public partial class MainWindow : Window
             if (element.Name.LocalName == Package)
                 continue;
 
-            var attributes = element.Attributes();
-
-            foreach (var attribute in attributes)
-                if (attribute.IsNamespaceDeclaration && attribute.Name.LocalName == Xmlns)
-                    attribute.Remove();
-
             element.Name = element.Name.LocalName;
         }
 
@@ -176,7 +170,9 @@ public partial class MainWindow : Window
             nuspecXDocument.Save(xmlWriter);
         }
 
-        File.WriteAllText(nuspecFilePath, File.ReadAllText(nuspecFilePath).Replace(" xmlns=\"\"", string.Empty));
+        File.WriteAllText(nuspecFilePath,
+            File.ReadAllText(nuspecFilePath)
+                .Replace(" xmlns=\"\"", string.Empty));
     }
 
     private void SetStyleCop()
