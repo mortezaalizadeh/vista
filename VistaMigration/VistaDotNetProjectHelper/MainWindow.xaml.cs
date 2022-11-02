@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Xml;
 using System.Xml.Linq;
+using DotLiquid;
 
 namespace VistaDotNetProjectHelper;
 
@@ -14,6 +16,28 @@ namespace VistaDotNetProjectHelper;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private const string TargetFrameworks = "TargetFrameworks";
+    private const string AssemblyName = "AssemblyName";
+    private const string RootNamespace = "RootNamespace";
+    private const string GenerateAssemblyInfo = "GenerateAssemblyInfo";
+    private const string GenerateDocumentationFile = "GenerateDocumentationFile";
+    private const string LangVersion = "LangVersion";
+    private const string TreatWarningsAsErrors = "TreatWarningsAsErrors";
+    private const string NoWarn = "NoWarn";
+    private const string WarningsAsErrors = "WarningsAsErrors";
+    private const string Project = "Project";
+    private const string PropertyGroup = "PropertyGroup";
+    private const string Condition = "Condition";
+    private const string DefineConstants = "DefineConstants";
+    private const string PackageReference = "PackageReference";
+    private const string AdditionalFiles = "AdditionalFiles";
+    private const string Include = "Include";
+    private const string Version = "Version";
+    private const string Link = "Link";
+    private const string ItemGroup = "ItemGroup";
+    private const string StylecopJsonFileName = "stylecop.json";
+
+
     public MainWindow()
     {
         InitializeComponent();
@@ -38,30 +62,43 @@ public partial class MainWindow : Window
             return;
         }
 
+        var sourceDirectory = GetSourceDirectory();
+
+        if (!Directory.Exists(sourceDirectory))
+        {
+            MessageBox.Show($"Source directory {sourceDirectory} does not exist", "Error", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
         ProjectsListBox.Items.Clear();
 
-        foreach (var directory in Directory.GetDirectories(directoryPath))
-            if (Directory.GetFiles(directory, "*.csproj").Length == 1)
-                ProjectsListBox.Items.Add(directory.Split(Path.DirectorySeparatorChar).Last());
+        foreach (var projectDirectory in Directory.GetDirectories(sourceDirectory))
+            if (Directory.GetFiles(projectDirectory, "*.csproj").Length == 1)
+                ProjectsListBox.Items.Add(projectDirectory.Split(Path.DirectorySeparatorChar).Last());
     }
+
 
     private void MigrateButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            var directoryPath = GetDirectoryPath();
+            SetStyleCop();
+
+            var sourceDirectory = GetSourceDirectory();
 
             foreach (string directory in ProjectsListBox.SelectedItems)
             {
-                var csprojFile = Directory.GetFiles(Path.Join(directoryPath, directory), "*.csproj").First();
+                var projectDirectory = Path.Join(sourceDirectory, directory);
+                var csprojFile = Directory.GetFiles(projectDirectory, "*.csproj").First();
+
+                SetAssemblyInfo(projectDirectory, csprojFile);
 
                 var xDocument = XDocument.Load(csprojFile);
 
-                var itemGroups = GetPackageReferences(xDocument);
-
-                var additionalFiles = GetAdditionalFiles(xDocument);
-
                 SetPropertyGroups(xDocument, csprojFile);
+                SetItemGroup(xDocument);
 
                 using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
                 {
@@ -79,43 +116,94 @@ public partial class MainWindow : Window
         }
     }
 
-
-    private static void SetPropertyGroups(XContainer xDocument, string csprojFile)
+    private void SetStyleCop()
     {
-        var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
+        using var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.stylecop.liquid");
+        using var streamReader = new StreamReader(stream!);
 
-        if (propertyGroupsElements.TryGetValue("TargetFrameworks", out var targetFrameworks))
+        var assemblyInfoContent = DotLiquid.Template.Parse(
+                streamReader.ReadToEnd())
+            .Render(Hash.FromAnonymousObject(new
+            {
+            }));
+
+        File.WriteAllText(Path.Join(GetDirectoryPath(), StylecopJsonFileName), assemblyInfoContent);
+    }
+
+    private static void SetAssemblyInfo(string projectDirectory, string csprojFile)
+    {
+        var propertiesDirectory = Path.Join(projectDirectory, "Properties");
+
+        if (!Directory.Exists(propertiesDirectory))
+            throw new Exception($"Properties {propertiesDirectory} directory does not exist!!!");
+
+        using var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.AssemblyInfo.liquid");
+        using var streamReader = new StreamReader(stream!);
+
+        var assemblyInfoContent = DotLiquid.Template.Parse(
+                streamReader.ReadToEnd())
+            .Render(Hash.FromAnonymousObject(new
+            {
+                assemblyTitle = GetAssemblyName(csprojFile),
+                assemblyProduct = GetAssemblyName(csprojFile),
+                year = DateTime.UtcNow.Year.ToString()
+            }));
+
+        File.WriteAllText(Path.Join(propertiesDirectory, "AssemblyInfo.cs"), assemblyInfoContent);
+    }
+
+    private void SetPropertyGroups(XContainer xDocument, string csprojFile)
+    {
+        SetTargetFrameworks(xDocument);
+        SetGlobalPropertyGroupItems(xDocument, csprojFile);
+        SetDebugPropertyGroupItems(xDocument);
+        SetReleasePropertyGroupItems(xDocument);
+    }
+
+    private static void SetItemGroup(XContainer xDocument)
+    {
+        var additionalFiles = GetAdditionalFiles(xDocument);
+
+        foreach (var key in additionalFiles.Keys.Where(key => key.Contains(StylecopJsonFileName)))
+            additionalFiles[key].Element.Remove();
+
+        var itemGroup = GetItemGroup(xDocument);
+
+        if (itemGroup == null)
         {
-            var targetFrameworksToAdd = new List<string> { "net461", "netstandard2.0", "net6.0" };
-            var allTargetedFrameworks = targetFrameworks.Value.Split(";").ToList();
+            var projectElement = xDocument.Descendants(Project).First();
 
-            foreach (var targetFrameworkToAdd in targetFrameworksToAdd
-                         .Where(targetFrameworkToAdd => !allTargetedFrameworks.Contains(targetFrameworkToAdd)))
-                allTargetedFrameworks.Add(targetFrameworkToAdd);
+            projectElement.Add(new XElement(ItemGroup));
 
-            allTargetedFrameworks.Sort();
-
-            targetFrameworks.Value = string.Join(';', allTargetedFrameworks);
-        }
-        else
-        {
-            throw new Exception("No TargetFrameworks found!!!");
+            itemGroup =
+                GetPropertyGroup(xDocument);
         }
 
+        itemGroup!.Add(new XElement(AdditionalFiles,
+            new XAttribute(Include, Path.Join("..", "..", StylecopJsonFileName)),
+            new XAttribute(Link, StylecopJsonFileName)));
+    }
+
+    private static void SetGlobalPropertyGroupItems(XContainer xDocument, string csprojFile)
+    {
         var attributes = new List<Tuple<string, string>>
         {
-            new("AssemblyName", Path.GetFileNameWithoutExtension(csprojFile)),
-            new("RootNamespace", Path.GetFileNameWithoutExtension(csprojFile)),
-            new("GenerateAssemblyInfo", "false"),
-            new("GenerateDocumentationFile", "true"),
-            new("LangVersion", "latest"),
-            new("TreatWarningsAsErrors", "true"),
-            new("NoWarn", string.Empty),
-            new("WarningsAsErrors", string.Empty)
+            new(AssemblyName, GetAssemblyName(csprojFile)),
+            new(RootNamespace, GetAssemblyName(csprojFile)),
+            new(GenerateAssemblyInfo, "false"),
+            new(GenerateDocumentationFile, "true"),
+            new(LangVersion, "latest"),
+            new(TreatWarningsAsErrors, "true"),
+            new(NoWarn, string.Empty),
+            new(WarningsAsErrors, string.Empty)
         };
 
-        var propertyGroup = xDocument.Descendants("PropertyGroup")
+        var propertyGroup = xDocument.Descendants(PropertyGroup)
             .First(propertyGroup => !propertyGroup.Attributes().Any());
+
+        var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
 
         foreach (var attribute in attributes)
             if (propertyGroupsElements.TryGetValue(attribute.Item1, out var element))
@@ -136,84 +224,99 @@ public partial class MainWindow : Window
                     ? new XElement(attribute.Item1)
                     : new XElement(attribute.Item1, attribute.Item2));
             }
+    }
 
-
+    private void SetDebugPropertyGroupItems(XContainer xDocument)
+    {
         var debugPropertyGroup =
-            GetPropertyGroup(xDocument, "Condition", "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
+            GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
 
         if (debugPropertyGroup == null)
         {
-            var projectElement = xDocument.Descendants("Project").First();
+            var projectElement = xDocument.Descendants(Project).First();
 
-            projectElement.Add(new XElement("PropertyGroup",
-                new XAttribute("Condition", "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'")));
+            projectElement.Add(new XElement(PropertyGroup,
+                new XAttribute(Condition, "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'")));
 
             debugPropertyGroup =
-                GetPropertyGroup(xDocument, "Condition", "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
+                GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
         }
 
         var debugPropertyGroupsElements =
-            GetPropertyGroupsElements(xDocument, "Condition", "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
+            GetPropertyGroupsElements(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
 
-        var vistaCodeContractsUsed = GetPackageReferences(xDocument).ContainsKey("Vista.CodeContracts");
+        var debugDefineConstantsValues =
+            ShouldIncludeCodeOfConduct(xDocument) ? "TRACE;DEBUG;VISTA_CODE_CONTRACTS" : "TRACE;DEBUG";
 
-        var debugDefineConstantsValues = vistaCodeContractsUsed ? "TRACE;DEBUG;VISTA_CODE_CONTRACTS" : "TRACE;DEBUG";
-
-        if (debugPropertyGroupsElements.TryGetValue("DefineConstants", out var debugDefineConstantsElement))
+        if (debugPropertyGroupsElements.TryGetValue(DefineConstants, out var debugDefineConstantsElement))
             debugDefineConstantsElement.Value = debugDefineConstantsValues;
         else
-            debugPropertyGroup.Add(new XElement("DefineConstants", debugDefineConstantsValues));
+            debugPropertyGroup!.Add(new XElement(DefineConstants, debugDefineConstantsValues));
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
+    private void SetReleasePropertyGroupItems(XContainer xDocument)
+    {
         var releasePropertyGroup =
-            GetPropertyGroup(xDocument, "Condition", "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
+            GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
 
         if (releasePropertyGroup == null)
         {
-            var projectElement = xDocument.Descendants("Project").First();
+            var projectElement = xDocument.Descendants(Project).First();
 
-            projectElement.Add(new XElement("PropertyGroup",
-                new XAttribute("Condition", "'$(Configuration)|$(Platform)'=='Release|AnyCPU'")));
+            projectElement.Add(new XElement(PropertyGroup,
+                new XAttribute(Condition, "'$(Configuration)|$(Platform)'=='Release|AnyCPU'")));
 
             releasePropertyGroup =
-                GetPropertyGroup(xDocument, "Condition", "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
+                GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
         }
 
         var releasePropertyGroupElements =
-            GetPropertyGroupsElements(xDocument, "Condition", "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
+            GetPropertyGroupsElements(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
 
-        var releaseDefineConstantsValues = vistaCodeContractsUsed ? "TRACE;VISTA_CODE_CONTRACTS" : "TRACE";
+        var releaseDefineConstantsValues =
+            ShouldIncludeCodeOfConduct(xDocument) ? "TRACE;VISTA_CODE_CONTRACTS" : "TRACE";
 
-        if (releasePropertyGroupElements.TryGetValue("DefineConstants", out var releaseDefineConstantsElement))
+        if (releasePropertyGroupElements.TryGetValue(DefineConstants, out var releaseDefineConstantsElement))
             releaseDefineConstantsElement.Value = releaseDefineConstantsValues;
         else
-            releasePropertyGroup.Add(new XElement("DefineConstants", releaseDefineConstantsValues));
-
+            releasePropertyGroup!.Add(new XElement(DefineConstants, releaseDefineConstantsValues));
     }
 
-    private static Dictionary<string, XElement> GetPropertyGroupsElements(
+    private static void SetTargetFrameworks(XContainer xDocument)
+    {
+        var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
+
+        if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
+        {
+            var targetFrameworksToAdd = new List<string> { "net461", "netstandard2.0", "net6.0" };
+            var allTargetedFrameworks = targetFrameworks.Value.Split(";").ToList();
+
+            foreach (var targetFrameworkToAdd in targetFrameworksToAdd
+                         .Where(targetFrameworkToAdd => !allTargetedFrameworks.Contains(targetFrameworkToAdd)))
+                allTargetedFrameworks.Add(targetFrameworkToAdd);
+
+            allTargetedFrameworks.Sort();
+
+            targetFrameworks.Value = string.Join(';', allTargetedFrameworks);
+        }
+        else
+        {
+            throw new Exception($"No {TargetFrameworks} found!!!");
+        }
+    }
+
+    private static IDictionary<string, XElement> GetPropertyGroupsElements(
         XContainer xDocument,
         string attributeName = "",
         string attributeValue = "")
     {
-        return xDocument.Descendants("PropertyGroup")
+        return xDocument.Descendants(PropertyGroup)
             .Where(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
                 ? !propertyGroup.Attributes().Any()
                 : propertyGroup.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue))
             .SelectMany(resource => resource.Elements())
-            .ToDictionary(child => child.Name.LocalName, child => child);
+            .ToDictionary(element => element.Name.LocalName, child => child);
     }
 
     private static XElement? GetPropertyGroup(
@@ -221,36 +324,86 @@ public partial class MainWindow : Window
         string attributeName = "",
         string attributeValue = "")
     {
-        return xDocument.Descendants("PropertyGroup")
+        return xDocument.Descendants(PropertyGroup)
             .FirstOrDefault(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
                 ? !propertyGroup.Attributes().Any()
                 : propertyGroup.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue));
     }
 
-    private static IDictionary<string, string> GetPackageReferences(XContainer xDocument)
+    private static IDictionary<string, PackageReferenceProps> GetPackageReferences(XContainer xDocument)
     {
         return xDocument
-            .Descendants("ItemGroup")
+            .Descendants(ItemGroup)
             .SelectMany(resource => resource.Elements())
-            .Where(element => element.Name.LocalName == "PackageReference")
+            .Where(element => element.Name.LocalName == PackageReference)
             .ToDictionary(
-                child => child.Attribute("Include")!.Value,
-                child => child.Attribute("Version")!.Value);
+                element => element.Attribute(Include)!.Value,
+                element => new PackageReferenceProps
+                {
+                    Element = element,
+                    Version = element.Attribute(Version)?.Value
+                });
     }
 
-    private static IReadOnlyCollection<string> GetAdditionalFiles(XContainer xDocument)
+    private static IDictionary<string, XElement> GetItemGroupsElements(
+        XContainer xDocument,
+        string attributeName = "",
+        string attributeValue = "")
+    {
+        return xDocument.Descendants(ItemGroup)
+            .Where(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
+                ? !propertyGroup.Attributes().Any()
+                : propertyGroup.Attributes().Any(attribute =>
+                    attribute.Name.LocalName == attributeName && attribute.Value == attributeValue))
+            .SelectMany(resource => resource.Elements())
+            .ToDictionary(element => element.Name.LocalName, child => child);
+    }
+
+    private static XElement? GetItemGroup(
+        XContainer xDocument,
+        string attributeName = "",
+        string attributeValue = "")
+    {
+        return xDocument.Descendants(ItemGroup)
+            .FirstOrDefault(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
+                ? !propertyGroup.Attributes().Any()
+                : propertyGroup.Attributes().Any(attribute =>
+                    attribute.Name.LocalName == attributeName && attribute.Value == attributeValue));
+    }
+
+    private static IDictionary<string, AdditionalItemsProps> GetAdditionalFiles(XContainer xDocument)
     {
         return xDocument
-            .Descendants("ItemGroup")
+            .Descendants(ItemGroup)
             .SelectMany(resource => resource.Elements())
-            .Where(element => element.Name.LocalName == "AdditionalFiles")
-            .Select(child => child.Attribute("Include")!.Value)
-            .ToList();
+            .Where(element => element.Name.LocalName == AdditionalFiles)
+            .ToDictionary(
+                element => element.Attribute(Include)!.Value,
+                element => new AdditionalItemsProps
+                {
+                    Element = element,
+                    Link = element.Attribute(Link)?.Value
+                });
     }
 
     private string GetDirectoryPath()
     {
         return SolutionDirectoryPathTextBox.Text;
+    }
+
+    private string GetSourceDirectory()
+    {
+        return Path.Join(SolutionDirectoryPathTextBox.Text, "src");
+    }
+
+    private bool ShouldIncludeCodeOfConduct(XContainer xDocument)
+    {
+        return GetPackageReferences(xDocument).ContainsKey("Vista.CodeContracts");
+    }
+
+    private static string GetAssemblyName(string csprojFile)
+    {
+        return Path.GetFileNameWithoutExtension(csprojFile);
     }
 }

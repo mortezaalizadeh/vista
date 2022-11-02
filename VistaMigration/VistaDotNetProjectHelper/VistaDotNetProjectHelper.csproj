@@ -7,4 +7,17 @@
         <UseWPF>true</UseWPF>
     </PropertyGroup>
 
+    <ItemGroup>
+      <None Remove="stylecop.liquid" />
+    </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DotLiquid" Version="2.2.656" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Templates\stylecop.liquid" />
+		<EmbeddedResource Include="Templates\AssemblyInfo.liquid" />
+	</ItemGroup>
+
 </Project>
