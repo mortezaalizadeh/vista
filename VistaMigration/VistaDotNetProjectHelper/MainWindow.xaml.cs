@@ -32,12 +32,18 @@ public partial class MainWindow : Window
     private const string PackageReference = "PackageReference";
     private const string AdditionalFiles = "AdditionalFiles";
     private const string Include = "Include";
-    private const string Version = "Version";
+    private const string ProjectVersion = "Version";
     private const string Link = "Link";
     private const string ItemGroup = "ItemGroup";
     private const string StyleCopJsonFileName = "stylecop.json";
     private const string GitIgnoreFileName = ".gitignore";
 
+    private const string Metadata = "metadata";
+    private const string Id = "id";
+    private const string NuspecVersion = "version";
+    private const string RequireLicenseAcceptance = "requireLicenseAcceptance";
+    private const string PipelineVersionConstant = "$VersionNuGet$";
+    private static readonly XNamespace NuspecNamespace = "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd";
 
     public MainWindow()
     {
@@ -80,7 +86,6 @@ public partial class MainWindow : Window
                 ProjectsListBox.Items.Add(projectDirectory.Split(Path.DirectorySeparatorChar).Last());
     }
 
-
     private void MigrateButton_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -99,16 +104,8 @@ public partial class MainWindow : Window
 
                 var xDocument = XDocument.Load(csprojFile);
 
-                SetPropertyGroups(xDocument, csprojFile);
-                SetItemGroup(xDocument);
-
-                using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
-                {
-                    OmitXmlDeclaration = true,
-                    Indent = true
-                });
-
-                xDocument.Save(xmlWriter);
+                SetProjectFile(xDocument, csprojFile);
+                CheckAndCreateNuspecFile(xDocument, csprojFile);
             }
         }
         catch (Exception exception)
@@ -116,6 +113,45 @@ public partial class MainWindow : Window
             MessageBox.Show($"Exception: {exception.Message}", "Error", MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private void SetProjectFile(XDocument xDocument, string csprojFile)
+    {
+        SetPropertyGroups(xDocument, csprojFile);
+        SetItemGroup(xDocument);
+
+        using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
+        {
+            OmitXmlDeclaration = true,
+            Indent = true
+        });
+
+        xDocument.Save(xmlWriter);
+    }
+
+    private static void CheckAndCreateNuspecFile(XContainer xDocument, string csprojFile)
+    {
+        if (csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase)) return;
+
+        var nuspecFileName = $"{Path.GetFileNameWithoutExtension(csprojFile)}.nuspec";
+        var nuspecFilePath = Path.Join(Path.GetDirectoryName(csprojFile), nuspecFileName);
+
+        if (!File.Exists(nuspecFilePath)) throw new Exception($"File {nuspecFilePath} does not exist");
+
+        var nuspecXDocument = XDocument.Load(nuspecFilePath);
+
+        SetMetadataItems(nuspecXDocument, csprojFile);
+
+
+        // Need to create nuspec file
+        //var allTargetFrameworks = GetAllTargetFrameworks(xDocument);
+
+        using var xmlWriter = XmlWriter.Create(nuspecFilePath, new XmlWriterSettings
+        {
+            Indent = true
+        });
+
+        nuspecXDocument.Save(xmlWriter);
     }
 
     private void SetStyleCop()
@@ -205,45 +241,45 @@ public partial class MainWindow : Window
 
     private static void SetGlobalPropertyGroupItems(XContainer xDocument, string csprojFile)
     {
-        var attributes = new List<Tuple<string, string>>
+        var itemsToOverride = new List<Tuple<string, string>>
         {
             new(AssemblyName, GetAssemblyName(csprojFile)),
             new(RootNamespace, GetAssemblyName(csprojFile)),
             new(GenerateAssemblyInfo, "false"),
             new(GenerateDocumentationFile, "true"),
-            new(LangVersion, "latest"),
+            new(LangVersion, "10"),
             new(TreatWarningsAsErrors, "true"),
             new(NoWarn, string.Empty),
             new(WarningsAsErrors, string.Empty)
         };
 
         var propertyGroup = xDocument.Descendants(PropertyGroup)
-            .First(propertyGroup => !propertyGroup.Attributes().Any());
+            .First(element => !element.Attributes().Any());
 
-        var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
+        var elements = GetPropertyGroupsElements(xDocument);
 
-        foreach (var attribute in attributes)
-            if (propertyGroupsElements.TryGetValue(attribute.Item1, out var element))
+        foreach (var itemToOverride in itemsToOverride)
+            if (elements.TryGetValue(itemToOverride.Item1, out var element))
             {
-                if (string.IsNullOrWhiteSpace(attribute.Item2))
+                if (string.IsNullOrWhiteSpace(itemToOverride.Item2))
                 {
                     element.Remove();
-                    propertyGroup.Add(new XElement(attribute.Item1));
+                    propertyGroup.Add(new XElement(itemToOverride.Item1));
                 }
                 else
                 {
-                    element.Value = attribute.Item2;
+                    element.Value = itemToOverride.Item2;
                 }
             }
             else
             {
-                propertyGroup.Add(string.IsNullOrWhiteSpace(attribute.Item2)
-                    ? new XElement(attribute.Item1)
-                    : new XElement(attribute.Item1, attribute.Item2));
+                propertyGroup.Add(string.IsNullOrWhiteSpace(itemToOverride.Item2)
+                    ? new XElement(itemToOverride.Item1)
+                    : new XElement(itemToOverride.Item1, itemToOverride.Item2));
             }
     }
 
-    private void SetDebugPropertyGroupItems(XContainer xDocument)
+    private static void SetDebugPropertyGroupItems(XContainer xDocument)
     {
         var debugPropertyGroup =
             GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Debug|AnyCPU'");
@@ -271,7 +307,7 @@ public partial class MainWindow : Window
             debugPropertyGroup!.Add(new XElement(DefineConstants, debugDefineConstantsValues));
     }
 
-    private void SetReleasePropertyGroupItems(XContainer xDocument)
+    private static void SetReleasePropertyGroupItems(XContainer xDocument)
     {
         var releasePropertyGroup =
             GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
@@ -322,15 +358,25 @@ public partial class MainWindow : Window
         }
     }
 
+    private static string GetAllTargetFrameworks(XContainer xDocument)
+    {
+        var propertyGroupsElements = GetPropertyGroupsElements(xDocument);
+
+        if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
+            return targetFrameworks.Value;
+
+        throw new Exception($"No {TargetFrameworks} found!!!");
+    }
+
     private static IDictionary<string, XElement> GetPropertyGroupsElements(
         XContainer xDocument,
         string attributeName = "",
         string attributeValue = "")
     {
         return xDocument.Descendants(PropertyGroup)
-            .Where(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
-                ? !propertyGroup.Attributes().Any()
-                : propertyGroup.Attributes().Any(attribute =>
+            .Where(element => string.IsNullOrWhiteSpace(attributeName)
+                ? !element.Attributes().Any()
+                : element.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue))
             .SelectMany(resource => resource.Elements())
             .ToDictionary(element => element.Name.LocalName, child => child);
@@ -342,9 +388,9 @@ public partial class MainWindow : Window
         string attributeValue = "")
     {
         return xDocument.Descendants(PropertyGroup)
-            .FirstOrDefault(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
-                ? !propertyGroup.Attributes().Any()
-                : propertyGroup.Attributes().Any(attribute =>
+            .FirstOrDefault(element => string.IsNullOrWhiteSpace(attributeName)
+                ? !element.Attributes().Any()
+                : element.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue));
     }
 
@@ -359,7 +405,7 @@ public partial class MainWindow : Window
                 element => new PackageReferenceProps
                 {
                     Element = element,
-                    Version = element.Attribute(Version)?.Value
+                    Version = element.Attribute(ProjectVersion)?.Value
                 });
     }
 
@@ -369,9 +415,9 @@ public partial class MainWindow : Window
         string attributeValue = "")
     {
         return xDocument.Descendants(ItemGroup)
-            .Where(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
-                ? !propertyGroup.Attributes().Any()
-                : propertyGroup.Attributes().Any(attribute =>
+            .Where(element => string.IsNullOrWhiteSpace(attributeName)
+                ? !element.Attributes().Any()
+                : element.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue))
             .SelectMany(resource => resource.Elements())
             .ToDictionary(element => element.Name.LocalName, child => child);
@@ -383,9 +429,9 @@ public partial class MainWindow : Window
         string attributeValue = "")
     {
         return xDocument.Descendants(ItemGroup)
-            .FirstOrDefault(propertyGroup => string.IsNullOrWhiteSpace(attributeName)
-                ? !propertyGroup.Attributes().Any()
-                : propertyGroup.Attributes().Any(attribute =>
+            .FirstOrDefault(element => string.IsNullOrWhiteSpace(attributeName)
+                ? !element.Attributes().Any()
+                : element.Attributes().Any(attribute =>
                     attribute.Name.LocalName == attributeName && attribute.Value == attributeValue));
     }
 
@@ -404,6 +450,49 @@ public partial class MainWindow : Window
                 });
     }
 
+    private static IDictionary<string, XElement> GetMetadataElements(XContainer xDocument)
+    {
+        return xDocument.Descendants(NuspecNamespace + Metadata)
+            .Where(element =>
+                !element.Attributes().Any())
+            .SelectMany(resource => resource.Elements())
+            .ToDictionary(element => element.Name.LocalName, child => child);
+    }
+
+    private static void SetMetadataItems(XContainer xDocument, string csprojFile)
+    {
+        var itemsToOverride = new List<Tuple<string, string>>
+        {
+            new(Id, GetAssemblyName(csprojFile)),
+            new(NuspecVersion, PipelineVersionConstant),
+            new(RequireLicenseAcceptance, "false")
+        };
+
+        var metadata = xDocument.Descendants(NuspecNamespace + "metadata").First();
+
+        var elements = GetMetadataElements(xDocument);
+
+        foreach (var itemToOverride in itemsToOverride)
+            if (elements.TryGetValue(itemToOverride.Item1, out var element))
+            {
+                if (string.IsNullOrWhiteSpace(itemToOverride.Item2))
+                {
+                    element.Remove();
+                    metadata.Add(new XElement(itemToOverride.Item1));
+                }
+                else
+                {
+                    element.Value = itemToOverride.Item2;
+                }
+            }
+            else
+            {
+                metadata.Add(string.IsNullOrWhiteSpace(itemToOverride.Item2)
+                    ? new XElement(itemToOverride.Item1)
+                    : new XElement(itemToOverride.Item1, itemToOverride.Item2));
+            }
+    }
+
     private string GetDirectoryPath()
     {
         return SolutionDirectoryPathTextBox.Text;
@@ -414,7 +503,7 @@ public partial class MainWindow : Window
         return Path.Join(SolutionDirectoryPathTextBox.Text, "src");
     }
 
-    private bool ShouldIncludeCodeOfConduct(XContainer xDocument)
+    private static bool ShouldIncludeCodeOfConduct(XContainer xDocument)
     {
         return GetPackageReferences(xDocument).ContainsKey("Vista.CodeContracts");
     }
