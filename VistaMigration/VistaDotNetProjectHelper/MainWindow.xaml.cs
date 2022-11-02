@@ -37,6 +37,9 @@ public partial class MainWindow : Window
     private const string ItemGroup = "ItemGroup";
     private const string PrivateAssets = "PrivateAssets";
     private const string IncludeAssets = "IncludeAssets";
+    private const string DebugType = "DebugType";
+    private const string DebugSymbols = "DebugSymbols";
+    private const string DefaultItemExcludes = "DefaultItemExcludes";
 
     private const string Metadata = "metadata";
     private const string Id = "id";
@@ -141,7 +144,8 @@ public partial class MainWindow : Window
 
         xDocument.Descendants()
             .Where(element => (element.IsEmpty || string.IsNullOrWhiteSpace(element.Value)) &&
-                              element.Name.LocalName == ItemGroup && !element.Nodes().Any())
+                              (element.Name.LocalName == PropertyGroup || element.Name.LocalName == ItemGroup) &&
+                              !element.Nodes().Any())
             .Remove();
 
         using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
@@ -294,6 +298,7 @@ public partial class MainWindow : Window
         SetGlobalPropertyGroupItems(xDocument, csprojFile);
         SetDebugPropertyGroupItems(xDocument);
         SetReleasePropertyGroupItems(xDocument);
+        AddDefaultItemExcludes(xDocument);
     }
 
     private static void SetItemGroup(XContainer xDocument)
@@ -320,6 +325,23 @@ public partial class MainWindow : Window
             new XAttribute(Link, StyleCopJsonFileName)));
 
         xDocument.Descendants(Project).First().Add(itemGroup);
+    }
+
+    private static void AddDefaultItemExcludes(XContainer xDocument)
+    {
+        var excludeItemsList = new List<string> { "$(DefaultItemExcludes);*.ncrunchproject" };
+
+        var elements = GetDefaultItemExcludes(xDocument);
+
+        foreach (var key in elements.Keys.Where(key => excludeItemsList.Contains(key)))
+            elements[key].Remove();
+
+        var propertyGroup = new XElement(PropertyGroup);
+
+        foreach (var excludeItem in excludeItemsList)
+            propertyGroup!.Add(new XElement(DefaultItemExcludes, excludeItem));
+
+        xDocument.Descendants(Project).First().Add(propertyGroup);
     }
 
     private static void AddCodeAnalysisPackages(XContainer xDocument)
@@ -486,6 +508,16 @@ public partial class MainWindow : Window
             releaseDefineConstantsElement.Value = releaseDefineConstantsValues;
         else
             releasePropertyGroup!.Add(new XElement(DefineConstants, releaseDefineConstantsValues));
+
+        if (releasePropertyGroupElements.TryGetValue(DebugType, out var debugTypeElement))
+            debugTypeElement.Value = "pdbonly";
+        else
+            releasePropertyGroup!.Add(new XElement(DebugType, "pdbonly"));
+
+        if (releasePropertyGroupElements.TryGetValue(DebugSymbols, out var debugSymbolsElement))
+            debugSymbolsElement.Value = "true";
+        else
+            releasePropertyGroup!.Add(new XElement(DebugSymbols, "true"));
     }
 
     private static void SetTargetFrameworks(XContainer xDocument)
@@ -601,6 +633,17 @@ public partial class MainWindow : Window
                     Element = element,
                     Link = element.Attribute(Link)?.Value
                 });
+    }
+
+    private static IDictionary<string, XElement> GetDefaultItemExcludes(XContainer xDocument)
+    {
+        return xDocument
+            .Descendants(PropertyGroup)
+            .SelectMany(element => element.Elements())
+            .Where(element => element.Name.LocalName == DefaultItemExcludes)
+            .ToDictionary(
+                element => element.Value,
+                element => element);
     }
 
     private static IDictionary<string, XElement> GetMetadataElements(XContainer xDocument)
