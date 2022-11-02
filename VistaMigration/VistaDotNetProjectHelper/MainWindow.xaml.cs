@@ -35,7 +35,8 @@ public partial class MainWindow : Window
     private const string Version = "Version";
     private const string Link = "Link";
     private const string ItemGroup = "ItemGroup";
-    private const string StylecopJsonFileName = "stylecop.json";
+    private const string StyleCopJsonFileName = "stylecop.json";
+    private const string GitIgnoreFileName = ".gitignore";
 
 
     public MainWindow()
@@ -85,6 +86,7 @@ public partial class MainWindow : Window
         try
         {
             SetStyleCop();
+            SetGitIgnore();
 
             var sourceDirectory = GetSourceDirectory();
 
@@ -128,7 +130,22 @@ public partial class MainWindow : Window
             {
             }));
 
-        File.WriteAllText(Path.Join(GetDirectoryPath(), StylecopJsonFileName), assemblyInfoContent);
+        File.WriteAllText(Path.Join(GetDirectoryPath(), StyleCopJsonFileName), assemblyInfoContent);
+    }
+
+    private void SetGitIgnore()
+    {
+        using var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("VistaDotNetProjectHelper.Templates.gitignore.liquid");
+        using var streamReader = new StreamReader(stream!);
+
+        var assemblyInfoContent = DotLiquid.Template.Parse(
+                streamReader.ReadToEnd())
+            .Render(Hash.FromAnonymousObject(new
+            {
+            }));
+
+        File.WriteAllText(Path.Join(GetDirectoryPath(), GitIgnoreFileName), assemblyInfoContent);
     }
 
     private static void SetAssemblyInfo(string projectDirectory, string csprojFile)
@@ -166,7 +183,7 @@ public partial class MainWindow : Window
     {
         var additionalFiles = GetAdditionalFiles(xDocument);
 
-        foreach (var key in additionalFiles.Keys.Where(key => key.Contains(StylecopJsonFileName)))
+        foreach (var key in additionalFiles.Keys.Where(key => key.Contains(StyleCopJsonFileName)))
             additionalFiles[key].Element.Remove();
 
         var itemGroup = GetItemGroup(xDocument);
@@ -182,8 +199,8 @@ public partial class MainWindow : Window
         }
 
         itemGroup!.Add(new XElement(AdditionalFiles,
-            new XAttribute(Include, Path.Join("..", "..", StylecopJsonFileName)),
-            new XAttribute(Link, StylecopJsonFileName)));
+            new XAttribute(Include, Path.Join("..", "..", StyleCopJsonFileName)),
+            new XAttribute(Link, StyleCopJsonFileName)));
     }
 
     private static void SetGlobalPropertyGroupItems(XContainer xDocument, string csprojFile)
