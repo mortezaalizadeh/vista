@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     private const string ProjectVersion = "Version";
     private const string Link = "Link";
     private const string ItemGroup = "ItemGroup";
+    private const string PrivateAssets = "PrivateAssets";
+    private const string IncludeAssets = "IncludeAssets";
 
     private const string Metadata = "metadata";
     private const string Id = "id";
@@ -134,7 +136,13 @@ public partial class MainWindow : Window
         var xDocument = XDocument.Load(csprojFile);
 
         SetPropertyGroups(xDocument, csprojFile);
+        SetPackageReferences(xDocument);
         SetItemGroup(xDocument);
+
+        xDocument.Descendants()
+            .Where(element => (element.IsEmpty || string.IsNullOrWhiteSpace(element.Value)) &&
+                              element.Name.LocalName == ItemGroup && !element.Nodes().Any())
+            .Remove();
 
         using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
         {
@@ -290,17 +298,96 @@ public partial class MainWindow : Window
 
     private static void SetItemGroup(XContainer xDocument)
     {
-        var additionalFiles = GetAdditionalFiles(xDocument);
+        AddStyleCop(xDocument);
+    }
 
-        foreach (var key in additionalFiles.Keys.Where(key => key.Contains(StyleCopJsonFileName)))
-            additionalFiles[key].Element.Remove();
+    private static void SetPackageReferences(XContainer xDocument)
+    {
+        AddCodeAnalysisPackages(xDocument);
+    }
 
+    private static void AddStyleCop(XContainer xDocument)
+    {
+        var elements = GetAdditionalFiles(xDocument);
+
+        foreach (var key in elements.Keys.Where(key => key.Contains(StyleCopJsonFileName)))
+            elements[key].Element.Remove();
 
         var itemGroup = new XElement(ItemGroup);
 
         itemGroup!.Add(new XElement(AdditionalFiles,
             new XAttribute(Include, Path.Join("..", "..", StyleCopJsonFileName)),
             new XAttribute(Link, StyleCopJsonFileName)));
+
+        xDocument.Descendants(Project).First().Add(itemGroup);
+    }
+
+    private static void AddCodeAnalysisPackages(XContainer xDocument)
+    {
+        var packages = new List<CodeAnalyzerPackageProps>
+        {
+            new()
+            {
+                Name = "Microsoft.CodeAnalysis.FxCopAnalyzers",
+                Version = "2.9.8",
+                PrivateAssets = "all",
+                IncludeAssets = "runtime; build; native; contentfiles; analyzers"
+            },
+            new()
+            {
+                Name = "StyleCop.Analyzers",
+                Version = "1.1.118",
+                PrivateAssets = "all",
+                IncludeAssets = "runtime; build; native; contentfiles; analyzers"
+            },
+            new()
+            {
+                Name = "Vista.CodeAnalysisRuleSet.FxCop",
+                Version = "2.1.0",
+                PrivateAssets = "all",
+                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
+            },
+            new()
+            {
+                Name = "Vista.CodeAnalysisRuleSet.Global",
+                Version = "2.1.0",
+                PrivateAssets = "all",
+                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
+            },
+            new()
+            {
+                Name = "Vista.CodeAnalysisRuleSet.StyleCop",
+                Version = "2.1.0",
+                PrivateAssets = "all",
+                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
+            }
+        };
+
+        var elements = GetPackageReferences(xDocument);
+
+        foreach (var key in elements.Keys.Where(key => packages.Any(package => package.Name == key)))
+            elements[key].Element.Remove();
+
+
+        var packageReferencesToAdd = packages.Select(package =>
+        {
+            var privateAssets = new XElement(PrivateAssets, package.PrivateAssets);
+            var includeAssets = new XElement(IncludeAssets, package.IncludeAssets);
+
+            var packageReference = new XElement(
+                PackageReference,
+                new XAttribute(Include, package.Name!),
+                new XAttribute(ProjectVersion, package.Version!));
+
+            packageReference.Add(privateAssets);
+            packageReference.Add(includeAssets);
+
+            return packageReference;
+        }).ToList();
+
+        var itemGroup = new XElement(ItemGroup);
+
+        foreach (var packageReferenceToAdd in packageReferencesToAdd) itemGroup!.Add(packageReferenceToAdd);
 
         xDocument.Descendants(Project).First().Add(itemGroup);
     }
