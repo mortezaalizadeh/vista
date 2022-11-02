@@ -7,20 +7,15 @@
         <UseWPF>true</UseWPF>
     </PropertyGroup>
 
-    <ItemGroup>
-      <None Remove="stylecop.liquid" />
-      <None Remove="Templates\editorconfig.liquid" />
-      <None Remove="Templates\gitattributes.liquid" />
-      <None Remove="Templates\gitignore.liquid" />
-      <None Remove="Templates\nuget.config.liquid" />
-    </ItemGroup>
-
 	<ItemGroup>
 		<PackageReference Include="DotLiquid" Version="2.2.656" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<EmbeddedResource Include="Templates\gitattributes.liquid" />
+		<EmbeddedResource Include="Templates\FXCopGlobal.ruleset.liquid" />
+		<EmbeddedResource Include="Templates\StyleCopGlobal.ruleset.liquid" />
+		<EmbeddedResource Include="Templates\global.ruleset.liquid" />
 		<EmbeddedResource Include="Templates\nuget.config.liquid" />
 		<EmbeddedResource Include="Templates\gitignore.liquid" />
 		<EmbeddedResource Include="Templates\editorconfig.liquid" />
