@@ -68,10 +68,8 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         LoadProjectsButton_Click(null, null);
-
-        ProjectsListBox.SelectionMode = SelectionMode.Multiple;
         ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[0]);
-
+        ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
         MigrateButton_Click(null, null);
     }
 

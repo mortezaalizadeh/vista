@@ -17,7 +17,8 @@
         </Canvas>
         <Canvas Margin="0,131,381,-170">
             <ListBox Name="ProjectsListBox" Height="111" Width="345" HorizontalAlignment="Left"
-                     VerticalAlignment="Center" />
+                     VerticalAlignment="Center"
+                     SelectionMode="Multiple"/>
         </Canvas>
         <Canvas Margin="0,252,0,-252">
             <Button Name="MigrateButton" Content="Migrate" HorizontalAlignment="Left" 
