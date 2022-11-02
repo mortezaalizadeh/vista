@@ -243,21 +243,14 @@ public partial class MainWindow : Window
         foreach (var key in additionalFiles.Keys.Where(key => key.Contains(StyleCopJsonFileName)))
             additionalFiles[key].Element.Remove();
 
-        var itemGroup = GetItemGroup(xDocument);
 
-        if (itemGroup == null)
-        {
-            var projectElement = xDocument.Descendants(Project).First();
-
-            projectElement.Add(new XElement(ItemGroup));
-
-            itemGroup =
-                GetPropertyGroup(xDocument);
-        }
+        var itemGroup = new XElement(ItemGroup);
 
         itemGroup!.Add(new XElement(AdditionalFiles,
             new XAttribute(Include, Path.Join("..", "..", StyleCopJsonFileName)),
             new XAttribute(Link, StyleCopJsonFileName)));
+
+        xDocument.Descendants(Project).First().Add(itemGroup);
     }
 
     private static void SetGlobalPropertyGroupItems(XContainer xDocument, string csprojFile)
