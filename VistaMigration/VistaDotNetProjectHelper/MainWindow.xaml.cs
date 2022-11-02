@@ -296,7 +296,7 @@ public partial class MainWindow : Window
         SetGlobalPropertyGroupItems(xDocument, csprojFile);
         SetDebugPropertyGroupItems(xDocument);
         SetReleasePropertyGroupItems(xDocument);
-        AddDefaultItemExcludes(xDocument);
+     //   AddDefaultItemExcludes(xDocument);
     }
 
     private static void SetItemGroup(XContainer xDocument)
@@ -348,38 +348,10 @@ public partial class MainWindow : Window
         {
             new()
             {
-                Name = "Microsoft.CodeAnalysis.FxCopAnalyzers",
-                Version = "2.9.8",
+                Name = "Vista.CodeQuality.Analyzers",
+                Version = "1.3.0",
                 PrivateAssets = "all",
                 IncludeAssets = "runtime; build; native; contentfiles; analyzers"
-            },
-            new()
-            {
-                Name = "StyleCop.Analyzers",
-                Version = "1.1.118",
-                PrivateAssets = "all",
-                IncludeAssets = "runtime; build; native; contentfiles; analyzers"
-            },
-            new()
-            {
-                Name = "Vista.CodeAnalysisRuleSet.FxCop",
-                Version = "2.1.0",
-                PrivateAssets = "all",
-                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
-            },
-            new()
-            {
-                Name = "Vista.CodeAnalysisRuleSet.Global",
-                Version = "2.1.0",
-                PrivateAssets = "all",
-                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
-            },
-            new()
-            {
-                Name = "Vista.CodeAnalysisRuleSet.StyleCop",
-                Version = "2.1.0",
-                PrivateAssets = "all",
-                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
             }
         };
 
