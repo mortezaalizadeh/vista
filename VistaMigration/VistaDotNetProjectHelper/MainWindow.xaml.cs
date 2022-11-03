@@ -17,13 +17,11 @@ public partial class MainWindow : Window
 {
     private const string TargetFrameworks = "TargetFrameworks";
     private const string AssemblyName = "AssemblyName";
-    private const string RootNamespace = "RootNamespace";
     private const string GenerateAssemblyInfo = "GenerateAssemblyInfo";
     private const string GenerateDocumentationFile = "GenerateDocumentationFile";
     private const string LangVersion = "LangVersion";
     private const string TreatWarningsAsErrors = "TreatWarningsAsErrors";
     private const string NoWarn = "NoWarn";
-    private const string CodeAnalysisRuleSet = "CodeAnalysisRuleSet";
     private const string WarningsAsErrors = "WarningsAsErrors";
     private const string Project = "Project";
     private const string PropertyGroup = "PropertyGroup";
@@ -50,6 +48,7 @@ public partial class MainWindow : Window
     private const string Target = "target";
     private const string FileConstant = "file";
     private const string Package = "package";
+    private const string Exclude = "exclude";
 
     private const string StyleCopJsonFileName = "stylecop.json";
     private const string GitIgnoreFileName = ".gitignore";
@@ -67,10 +66,13 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
         LoadProjectsButton_Click(null, null);
-        ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[0]);
-        ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
-        MigrateButton_Click(null, null);
+        
+        //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[0]);
+        //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
+        //MigrateButton_Click(null, null);
     }
 
     private void LoadProjectsButton_Click(object sender, RoutedEventArgs e)
@@ -295,7 +297,7 @@ public partial class MainWindow : Window
         SetTargetFrameworks(xDocument, csprojFile);
         SetGlobalPropertyGroupItems(xDocument, csprojFile);
         SetDebugPropertyGroupItems(xDocument);
-        SetReleasePropertyGroupItems(xDocument);
+        SetReleasePropertyGroupItems(xDocument, csprojFile);
      //   AddDefaultItemExcludes(xDocument);
     }
 
@@ -389,10 +391,9 @@ public partial class MainWindow : Window
         var itemsToOverride = new List<Tuple<string, string>>
         {
             new(AssemblyName, GetAssemblyName(csprojFile)),
-            new(RootNamespace, GetAssemblyName(csprojFile)),
             new(GenerateAssemblyInfo, "false"),
-            new(GenerateDocumentationFile, "true"),
-            new(LangVersion, "10"),
+            new(GenerateDocumentationFile, csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ? "false" : "true"),
+            new(LangVersion, "10.0"),
             new(TreatWarningsAsErrors, "true"),
             new(NoWarn, string.Empty),
             new(WarningsAsErrors, string.Empty)
@@ -452,7 +453,7 @@ public partial class MainWindow : Window
             debugPropertyGroup!.Add(new XElement(DefineConstants, debugDefineConstantsValues));
     }
 
-    private static void SetReleasePropertyGroupItems(XContainer xDocument)
+    private static void SetReleasePropertyGroupItems(XContainer xDocument, string csprojFile)
     {
         var releasePropertyGroup =
             GetPropertyGroup(xDocument, Condition, "'$(Configuration)|$(Platform)'=='Release|AnyCPU'");
@@ -479,15 +480,18 @@ public partial class MainWindow : Window
         else
             releasePropertyGroup!.Add(new XElement(DefineConstants, releaseDefineConstantsValues));
 
-        if (releasePropertyGroupElements.TryGetValue(DebugType, out var debugTypeElement))
-            debugTypeElement.Value = "pdbonly";
-        else
-            releasePropertyGroup!.Add(new XElement(DebugType, "pdbonly"));
+        if (!csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase))
+        {
+            if (releasePropertyGroupElements.TryGetValue(DebugType, out var debugTypeElement))
+                debugTypeElement.Value = "pdbonly";
+            else
+                releasePropertyGroup!.Add(new XElement(DebugType, "pdbonly"));
 
-        if (releasePropertyGroupElements.TryGetValue(DebugSymbols, out var debugSymbolsElement))
-            debugSymbolsElement.Value = "true";
-        else
-            releasePropertyGroup!.Add(new XElement(DebugSymbols, "true"));
+            if (releasePropertyGroupElements.TryGetValue(DebugSymbols, out var debugSymbolsElement))
+                debugSymbolsElement.Value = "true";
+            else
+                releasePropertyGroup!.Add(new XElement(DebugSymbols, "true"));
+        }
     }
 
     private static void SetTargetFrameworks(XContainer xDocument, string csprojFile)
@@ -497,7 +501,7 @@ public partial class MainWindow : Window
         if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
         {
             var targetFrameworksToAdd = csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase)
-                ? new List<string> { "net472" }
+                ? new List<string> { "net472", "net6.0" }
                 : new List<string> { "net461", "netstandard2.0", "net6.0" };
 
             var allTargetedFrameworks = targetFrameworks.Value.Split(";").ToList();
@@ -709,8 +713,10 @@ public partial class MainWindow : Window
                 };
             }).Concat(new List<XElement>
             {
-                new(FileConstant, new XAttribute(Src, $"{PipelineDirSrcConstant}\\{assemblyName}\\**\\*.cs"),
-                    new XAttribute(Target, $"src\\{assemblyName}"))
+                new(FileConstant, 
+                    new XAttribute(Src, $"{PipelineDirSrcConstant}\\{assemblyName}\\**\\*.cs"),
+                    new XAttribute(Target, $"src\\{assemblyName}"),
+                    new XAttribute(Exclude, $"{PipelineDirSrcConstant}\\{assemblyName}\\bin\\**;{PipelineDirSrcConstant}\\{assemblyName}\\obj\\**"))
             })
             .ToList();
 
