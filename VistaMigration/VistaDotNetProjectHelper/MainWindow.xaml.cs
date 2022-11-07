@@ -58,7 +58,7 @@ public partial class MainWindow : Window
 
     private const string PipelineVersionConstant = "$VersionNuGet$";
     private const string PipelineDirSrcConstant = "$DirSrc$";
-    private const string PipelineConfigurationConstant = "$configuration$";
+    private const string PipelineConfigurationConstant = "$Configuration$";
     private static readonly XNamespace NuspecNamespace = "http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd";
 
 
@@ -68,8 +68,27 @@ public partial class MainWindow : Window
 
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
-        LoadProjectsButton_Click(null, null);
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Vista.IO\Vista.IO";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.Nlog";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.SaaS.SharedConstants";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.SaaS.Environments";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.NoLogging";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Authentication.Tokens";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.DependencyInjection";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.ServiceLocation";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter.Client";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Diagnostics.Telemetry";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation.Platform";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Foundation";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
         
+
+        LoadProjectsButton_Click(null, null);
+
         //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[0]);
         //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
         //MigrateButton_Click(null, null);
@@ -161,7 +180,8 @@ public partial class MainWindow : Window
     {
         var xDocument = XDocument.Load(csprojFile);
 
-        if (csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase)) return;
+        if (csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
+            csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase)) return;
 
         var nuspecFileName = $"{Path.GetFileNameWithoutExtension(csprojFile)}.nuspec";
         var nuspecFilePath = Path.Join(Path.GetDirectoryName(csprojFile), nuspecFileName);
@@ -298,7 +318,7 @@ public partial class MainWindow : Window
         SetGlobalPropertyGroupItems(xDocument, csprojFile);
         SetDebugPropertyGroupItems(xDocument);
         SetReleasePropertyGroupItems(xDocument, csprojFile);
-     //   AddDefaultItemExcludes(xDocument);
+        //   AddDefaultItemExcludes(xDocument);
     }
 
     private static void SetItemGroup(XContainer xDocument)
@@ -353,7 +373,7 @@ public partial class MainWindow : Window
                 Name = "Vista.CodeQuality.Analyzers",
                 Version = "1.3.0",
                 PrivateAssets = "all",
-                IncludeAssets = "runtime; build; native; contentfiles; analyzers"
+                IncludeAssets = "runtime; build; native; contentfiles; analyzers; buildtransitive"
             }
         };
 
@@ -392,7 +412,11 @@ public partial class MainWindow : Window
         {
             new(AssemblyName, GetAssemblyName(csprojFile)),
             new(GenerateAssemblyInfo, "false"),
-            new(GenerateDocumentationFile, csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ? "false" : "true"),
+            new(GenerateDocumentationFile,
+                csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
+                csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase)
+                    ? "false"
+                    : "true"),
             new(LangVersion, "10.0"),
             new(TreatWarningsAsErrors, "true"),
             new(NoWarn, string.Empty),
@@ -480,7 +504,8 @@ public partial class MainWindow : Window
         else
             releasePropertyGroup!.Add(new XElement(DefineConstants, releaseDefineConstantsValues));
 
-        if (!csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase))
+        if (!csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
+            csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase))
         {
             if (releasePropertyGroupElements.TryGetValue(DebugType, out var debugTypeElement))
                 debugTypeElement.Value = "pdbonly";
@@ -500,7 +525,9 @@ public partial class MainWindow : Window
 
         if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
         {
-            var targetFrameworksToAdd = csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase)
+            var targetFrameworksToAdd = csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
+                                        csprojFile.Contains("IntegrationTests",
+                                            StringComparison.InvariantCultureIgnoreCase)
                 ? new List<string> { "net472", "net6.0" }
                 : new List<string> { "net461", "netstandard2.0", "net6.0" };
 
@@ -713,10 +740,11 @@ public partial class MainWindow : Window
                 };
             }).Concat(new List<XElement>
             {
-                new(FileConstant, 
+                new(FileConstant,
                     new XAttribute(Src, $"{PipelineDirSrcConstant}\\{assemblyName}\\**\\*.cs"),
                     new XAttribute(Target, $"src\\{assemblyName}"),
-                    new XAttribute(Exclude, $"{PipelineDirSrcConstant}\\{assemblyName}\\bin\\**;{PipelineDirSrcConstant}\\{assemblyName}\\obj\\**"))
+                    new XAttribute(Exclude,
+                        $"{PipelineDirSrcConstant}\\{assemblyName}\\bin\\**;{PipelineDirSrcConstant}\\{assemblyName}\\obj\\**"))
             })
             .ToList();
 
