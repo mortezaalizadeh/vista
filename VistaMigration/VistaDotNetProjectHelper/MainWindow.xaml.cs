@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private const string Condition = "Condition";
     private const string DefineConstants = "DefineConstants";
     private const string PackageReference = "PackageReference";
+    private const string ProjectReference = "ProjectReference";
     private const string AdditionalFiles = "AdditionalFiles";
     private const string Include = "Include";
     private const string ProjectVersion = "Version";
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
     private const string DebugType = "DebugType";
     private const string DebugSymbols = "DebugSymbols";
     private const string DefaultItemExcludes = "DefaultItemExcludes";
+    private const string Reference = "Reference";
 
     private const string Metadata = "metadata";
     private const string Id = "id";
@@ -66,10 +68,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Vista.IO\Vista.IO";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.Nlog";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.SaaS.SharedConstants";
@@ -84,14 +84,18 @@ public partial class MainWindow : Window
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation.Platform";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration";
         SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Foundation";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
-        
+        SolutionDirectoryPathTextBox.Text =
+            @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
+
+
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
 
         LoadProjectsButton_Click(null, null);
 
-        //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[0]);
+        ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[2]);
         //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
-        //MigrateButton_Click(null, null);
+        MigrateButton_Click(null, null);
     }
 
     private void LoadProjectsButton_Click(object sender, RoutedEventArgs e)
@@ -161,12 +165,11 @@ public partial class MainWindow : Window
         SetPackageReferences(xDocument);
         SetItemGroup(xDocument);
 
-        xDocument.Descendants()
-            .Where(element => (element.IsEmpty || string.IsNullOrWhiteSpace(element.Value)) &&
-                              element.Name.LocalName is PropertyGroup or ItemGroup &&
-                              !element.Nodes().Any())
-            .Remove();
-
+        MergeAllProjectReferences(xDocument);
+        MergeAllPackageReferences(xDocument);
+        SortDocument(xDocument);
+        RemoveEmptyNodes(xDocument);
+        
         using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
         {
             OmitXmlDeclaration = true,
@@ -176,12 +179,140 @@ public partial class MainWindow : Window
         xDocument.Save(xmlWriter);
     }
 
+    private static void MergeAllProjectReferences(XDocument xDocument)
+    {
+        IDictionary<string, List<XElement>> groupedItemGroupElements = new Dictionary<string, List<XElement>>();
+
+        foreach (var element in xDocument.Root!.Nodes().OfType<XElement>())
+        {
+            if (element.Name.LocalName is ItemGroup)
+            {
+                var conditionAttribute = element.Attribute(Condition);
+                var conditionValue = conditionAttribute == null ? string.Empty : conditionAttribute.Value;
+                var childElements = element.Nodes().OfType<XElement>()
+                    .Where(childElement => childElement.Name.LocalName == ProjectReference).ToList();
+
+                if (groupedItemGroupElements.ContainsKey(conditionValue))
+                {
+                    groupedItemGroupElements[conditionValue].AddRange(childElements);
+                }
+                else
+                {
+                    groupedItemGroupElements.Add(conditionValue, childElements);
+                }
+
+                childElements.Remove();
+            }
+        }
+
+        var projectElement = xDocument.Descendants(Project).First();
+
+        foreach (var (conditionValue, childElements) in groupedItemGroupElements)
+        {
+            var itemGroupElement = string.IsNullOrWhiteSpace(conditionValue)
+                ? new XElement(ItemGroup)
+                : new XElement(ItemGroup, new XAttribute(Condition, conditionValue));
+
+            foreach (var childElement in childElements)
+                itemGroupElement.Add(childElement);
+
+            projectElement.Add(itemGroupElement);
+        }
+    }
+
+    private static void MergeAllPackageReferences(XDocument xDocument)
+    {
+        IDictionary<string, List<XElement>> groupedItemGroupElements = new Dictionary<string, List<XElement>>();
+
+        foreach (var element in xDocument.Root!.Nodes().OfType<XElement>())
+        {
+            if (element.Name.LocalName is ItemGroup)
+            {
+                var conditionAttribute = element.Attribute(Condition);
+                var conditionValue = conditionAttribute == null ? string.Empty : conditionAttribute.Value;
+                var childElements = element.Nodes().OfType<XElement>()
+                    .Where(childElement => childElement.Name.LocalName == PackageReference).ToList();
+
+                if (groupedItemGroupElements.ContainsKey(conditionValue))
+                {
+                    groupedItemGroupElements[conditionValue].AddRange(childElements);
+                }
+                else
+                {
+                    groupedItemGroupElements.Add(conditionValue, childElements);
+                }
+
+                childElements.Remove();
+            }
+        }
+
+        var projectElement = xDocument.Descendants(Project).First();
+
+        foreach (var (conditionValue, childElements) in groupedItemGroupElements)
+        {
+            var itemGroupElement = string.IsNullOrWhiteSpace(conditionValue)
+                ? new XElement(ItemGroup)
+                : new XElement(ItemGroup, new XAttribute(Condition, conditionValue));
+
+            foreach (var childElement in childElements)
+                itemGroupElement.Add(childElement);
+
+            projectElement.Add(itemGroupElement);
+        }
+    }
+
+    private static void SortDocument(XDocument xDocument)
+    {
+        foreach (var element in xDocument.Root!.Nodes().OfType<XElement>())
+        {
+            if (element.Name.LocalName is PropertyGroup)
+            {
+                var childElements = element.Nodes().OfType<XElement>().ToList();
+
+                childElements.Remove();
+
+                foreach (var childElement in childElements.OrderBy(x => x.Name.LocalName))
+                    element.Add(childElement);
+            }
+
+            if (element.Name.LocalName is ItemGroup)
+            {
+                var childElements = element.Nodes().OfType<XElement>()
+                    .Where(childElement => childElement.Name.LocalName == PackageReference).ToList();
+
+                childElements.Remove();
+
+                foreach (var childElement in childElements.OrderBy(x => x.Attribute(Include).Value))
+                    element.Add(childElement);
+            }
+
+            if (element.Name.LocalName is ItemGroup)
+            {
+                var childElements = element.Nodes().OfType<XElement>()
+                    .Where(childElement => childElement.Name.LocalName == Reference).ToList();
+
+                childElements.Remove();
+
+                foreach (var childElement in childElements.OrderBy(x => x.Attribute(Include).Value))
+                    element.Add(childElement);
+            }
+        }
+    }
+
+    private static void RemoveEmptyNodes(XContainer xDocument)
+    {
+        xDocument.Descendants()
+            .Where(element => (element.IsEmpty || string.IsNullOrWhiteSpace(element.Value)) &&
+                              element.Name.LocalName is PropertyGroup or ItemGroup &&
+                              !element.Nodes().Any())
+            .Remove();
+    }
+
     private static void CheckAndCreateNuspecFile(string csprojFile)
     {
         var xDocument = XDocument.Load(csprojFile);
 
-        if (csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
-            csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase)) return;
+        if (IsTestProjectType(csprojFile)) return;
 
         var nuspecFileName = $"{Path.GetFileNameWithoutExtension(csprojFile)}.nuspec";
         var nuspecFilePath = Path.Join(Path.GetDirectoryName(csprojFile), nuspecFileName);
@@ -413,8 +544,7 @@ public partial class MainWindow : Window
             new(AssemblyName, GetAssemblyName(csprojFile)),
             new(GenerateAssemblyInfo, "false"),
             new(GenerateDocumentationFile,
-                csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
-                csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase)
+                IsTestProjectType(csprojFile)
                     ? "false"
                     : "true"),
             new(LangVersion, "10.0"),
@@ -504,8 +634,7 @@ public partial class MainWindow : Window
         else
             releasePropertyGroup!.Add(new XElement(DefineConstants, releaseDefineConstantsValues));
 
-        if (!csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
-            csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase))
+        if (!IsTestProjectType(csprojFile))
         {
             if (releasePropertyGroupElements.TryGetValue(DebugType, out var debugTypeElement))
                 debugTypeElement.Value = "pdbonly";
@@ -525,9 +654,7 @@ public partial class MainWindow : Window
 
         if (propertyGroupsElements.TryGetValue(TargetFrameworks, out var targetFrameworks))
         {
-            var targetFrameworksToAdd = csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
-                                        csprojFile.Contains("IntegrationTests",
-                                            StringComparison.InvariantCultureIgnoreCase)
+            var targetFrameworksToAdd = IsTestProjectType(csprojFile)
                 ? new List<string> { "net472", "net6.0" }
                 : new List<string> { "net461", "netstandard2.0", "net6.0" };
 
@@ -771,5 +898,11 @@ public partial class MainWindow : Window
     private static string GetAssemblyName(string csprojFile)
     {
         return Path.GetFileNameWithoutExtension(csprojFile);
+    }
+
+    private static bool IsTestProjectType(string csprojFile)
+    {
+        return csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
+               csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase);
     }
 }
