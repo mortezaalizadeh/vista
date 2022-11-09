@@ -68,34 +68,47 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Vista.IO\Vista.IO";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.Nlog";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.SaaS.SharedConstants";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.SaaS.Environments";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.NoLogging";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Authentication.Tokens";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.DependencyInjection";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.ServiceLocation";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter.Client";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Diagnostics.Telemetry";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation.Platform";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Foundation";
-        SolutionDirectoryPathTextBox.Text =
-            @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Diagnostics.Telemetry";
+
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
+        //SolutionDirectoryPathTextBox.Text =
+        //    @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Foundation";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Cloud";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter.Client";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.ServiceLocation";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.DependencyInjection";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Authentication.Tokens";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.Nlog";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.IO";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.SaaS.SharedConstants";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.NoLogging";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.SaaS.Environments";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration.Ini";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation.Platform";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Cloud";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.ServiceFramework";
+        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.Configuration.Client";
+        
 
 
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
-        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
 
-        LoadProjectsButton_Click(null, null);
 
-        ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[2]);
+
+
+
+        //LoadProjectsButton_Click(null, null);
+
+        //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[2]);
         //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
-        MigrateButton_Click(null, null);
+        //MigrateButton_Click(null, null);
     }
 
     private void LoadProjectsButton_Click(object sender, RoutedEventArgs e)
