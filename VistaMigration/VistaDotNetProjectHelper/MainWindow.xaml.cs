@@ -68,43 +68,38 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Diagnostics.Telemetry";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Diagnostics.Telemetry";
 
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
-        //SolutionDirectoryPathTextBox.Text =
-        //    @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Foundation";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Cloud";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter.Client";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.ServiceLocation";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.DependencyInjection";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Authentication.Tokens";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.Nlog";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.IO";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.SaaS.SharedConstants";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.NoLogging";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.SaaS.Environments";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration.Ini";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation.Platform";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Cloud";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.ServiceFramework";
-        //SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.Configuration.Client";
-        
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Jwt";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Security\Vista.Security";
+        SolutionDirectoryPathTextBox.Text =
+            @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise.FileUtilities";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Foundation";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.Cloud";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.ApiRouter.Client";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.ServiceLocation";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.DependencyInjection";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Authentication.Tokens";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.Nlog";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.IO";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.SaaS.SharedConstants";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Diagnostics.Logging.NoLogging";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.SaaS.Environments";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Context";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages\Vista.Configuration.Ini";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.OnPremise";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Foundation.Platform";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Environment.Cloud";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Configuration.ServiceFramework";
+        SolutionDirectoryPathTextBox.Text =
+            @"C:\Projects\Vista\Packages.Platform\Vista.Service.AuthenticationServer.Client";
+        SolutionDirectoryPathTextBox.Text = @"C:\Projects\Vista\Packages.Platform\Vista.Service.Configuration.Client";
 
-
-
-
-
-
-
-        //LoadProjectsButton_Click(null, null);
+        LoadProjectsButton_Click(null, null);
 
         //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[2]);
         //ProjectsListBox.SelectedItems.Add(ProjectsListBox.Items[1]);
@@ -182,7 +177,7 @@ public partial class MainWindow : Window
         MergeAllPackageReferences(xDocument);
         SortDocument(xDocument);
         RemoveEmptyNodes(xDocument);
-        
+
         using var xmlWriter = XmlWriter.Create(csprojFile, new XmlWriterSettings
         {
             OmitXmlDeclaration = true,
@@ -197,7 +192,6 @@ public partial class MainWindow : Window
         IDictionary<string, List<XElement>> groupedItemGroupElements = new Dictionary<string, List<XElement>>();
 
         foreach (var element in xDocument.Root!.Nodes().OfType<XElement>())
-        {
             if (element.Name.LocalName is ItemGroup)
             {
                 var conditionAttribute = element.Attribute(Condition);
@@ -206,17 +200,12 @@ public partial class MainWindow : Window
                     .Where(childElement => childElement.Name.LocalName == ProjectReference).ToList();
 
                 if (groupedItemGroupElements.ContainsKey(conditionValue))
-                {
                     groupedItemGroupElements[conditionValue].AddRange(childElements);
-                }
                 else
-                {
                     groupedItemGroupElements.Add(conditionValue, childElements);
-                }
 
                 childElements.Remove();
             }
-        }
 
         var projectElement = xDocument.Descendants(Project).First();
 
@@ -238,7 +227,6 @@ public partial class MainWindow : Window
         IDictionary<string, List<XElement>> groupedItemGroupElements = new Dictionary<string, List<XElement>>();
 
         foreach (var element in xDocument.Root!.Nodes().OfType<XElement>())
-        {
             if (element.Name.LocalName is ItemGroup)
             {
                 var conditionAttribute = element.Attribute(Condition);
@@ -247,17 +235,12 @@ public partial class MainWindow : Window
                     .Where(childElement => childElement.Name.LocalName == PackageReference).ToList();
 
                 if (groupedItemGroupElements.ContainsKey(conditionValue))
-                {
                     groupedItemGroupElements[conditionValue].AddRange(childElements);
-                }
                 else
-                {
                     groupedItemGroupElements.Add(conditionValue, childElements);
-                }
 
                 childElements.Remove();
             }
-        }
 
         var projectElement = xDocument.Descendants(Project).First();
 
@@ -916,6 +899,7 @@ public partial class MainWindow : Window
     private static bool IsTestProjectType(string csprojFile)
     {
         return csprojFile.Contains("UnitTests", StringComparison.InvariantCultureIgnoreCase) ||
-               csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase);
+               csprojFile.Contains("IntegrationTests", StringComparison.InvariantCultureIgnoreCase) ||
+               csprojFile.Contains("SystemTests", StringComparison.InvariantCultureIgnoreCase);
     }
 }
